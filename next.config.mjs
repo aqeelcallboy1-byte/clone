@@ -2,7 +2,7 @@ import createNextJsObfuscator from 'nextjs-obfuscator';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    // 1. Ép Vercel bỏ qua các lỗi định dạng và kiểu dữ liệu để hoàn tất build
+    // 1. Chống ngắt build do lỗi định dạng code (Rất quan trọng trên Vercel)
     typescript: {
         ignoreBuildErrors: true,
     },
@@ -10,7 +10,7 @@ const nextConfig = {
         ignoreDuringBuilds: true,
     },
     
-    // 2. Cấu hình Webpack xử lý các module Crypto (Quan trọng cho dự án Crypto)
+    // 2. Cấu hình xử lý Webpack cho Crypto & Buffer
     webpack: (config, { isServer }) => {
         if (!isServer) {
             config.resolve.fallback = {
@@ -30,41 +30,17 @@ const nextConfig = {
     },
 };
 
-// 3. Cấu hình bộ mã hóa Obfuscator tối ưu cho RAM 8GB của Vercel
+// 3. Cấu hình Obfuscator - Chiến thuật "Mã hóa chọn lọc"
 const withNextJsObfuscator = createNextJsObfuscator(
     {
         rotateStringArray: true,
-        disableConsoleOutput: false,
+        disableConsoleOutput: true, // Tăng bảo mật bằng cách chặn console
         compact: true,
+        // CẢNH BÁO: Tắt các tùy chọn dưới đây để tránh lỗi 8GB RAM trên Vercel
         controlFlowFlattening: false, 
         deadCodeInjection: false,
-        stringArray: true,
-        stringArrayThreshold: 0.5, // Giảm ngưỡng để nhẹ hơn cho CPU
-        transformObjectKeys: false, // Tắt cái này để tránh lỗi runtime trên Next.js
+        debugProtection: false,
+        stringArrayThreshold: 0.6,
     },
     {
         enabled: 'detect',
-        patterns: [
-            './app/**/*.(js|jsx|ts|tsx)',
-            './components/**/*.(js|jsx|ts|tsx)',
-        ],
-        exclude: [
-            // Loại trừ tất cả các file hệ thống và cấu hình của Next.js
-            './app/api/**/*',
-            './app/meta/**/*',
-            './middleware.ts',
-            '**/layout.tsx', // Giữ nguyên layout để tránh lỗi cấu trúc trang
-            '**/page.tsx',   // Chỉ mã hóa logic bên trong components, giữ page ổn định
-            '**/*.config.*',
-            './next.config.mjs',
-            './tailwind.config.js',
-            './postcss.config.mjs',
-            './jsconfig.json',
-            './tsconfig.json',
-            'node_modules'
-        ],
-        log: true,
-    }
-);
-
-export default withNextJsObfuscator(
