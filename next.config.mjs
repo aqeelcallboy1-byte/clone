@@ -2,24 +2,23 @@ import createNextJsObfuscator from 'nextjs-obfuscator';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    // 1. Bỏ qua lỗi TypeScript và ESLint để Vercel không ngắt Build giữa chừng
+    // 1. Cấu hình quan trọng để Vercel không ngắt Build khi gặp lỗi nhỏ
     typescript: {
-        ignoreBuildErrors: true,
+        ignoreBuildErrors: true, // Bỏ qua lỗi TypeScript khi build
     },
     eslint: {
-        ignoreDuringBuilds: true,
+        ignoreDuringBuilds: true, // Bỏ qua lỗi ESLint khi build
     },
     
-    // 2. Cấu hình Webpack cho các thư viện Crypto
+    // 2. Xử lý Webpack cho các thư viện Crypto và Polyfill
     webpack: (config, { isServer }) => {
         if (!isServer) {
-            // Polyfill hoặc xử lý các module node cho trình duyệt
             config.resolve.fallback = {
                 ...config.resolve.fallback,
                 fs: false,
                 net: false,
                 tls: false,
-                crypto: false, // Hoặc 'crypto-browserify' nếu cần
+                crypto: false,
             };
         }
         
@@ -31,16 +30,17 @@ const nextConfig = {
     },
 };
 
-// 3. Cấu hình bộ mã hóa Obfuscator
+// 3. Cấu hình Obfuscator (Đã điều chỉnh để nhẹ hơn cho máy Build 8GB)
 const withNextJsObfuscator = createNextJsObfuscator(
     {
-        // Cấu hình mã hóa nhẹ nhàng để tránh lỗi RAM trên Vercel
-        compact: true,
-        controlFlowFlattening: false, // Tắt cái này nếu Build bị đứng quá lâu
-        deadCodeInjection: false,     // Tắt để giảm dung lượng file build
         rotateStringArray: true,
         disableConsoleOutput: false,
-        selfDefending: false,         // Bật cái này dễ gây lỗi trên Vercel Serverless
+        // Giảm bớt các tùy chọn nặng để tránh lỗi "Exiting now" do thiếu RAM
+        compact: true,
+        controlFlowFlattening: false, 
+        deadCodeInjection: false,
+        stringArray: true,
+        stringArrayThreshold: 0.75,
     },
     {
         enabled: 'detect',
@@ -54,12 +54,14 @@ const withNextJsObfuscator = createNextJsObfuscator(
             './app/meta/**/*',
             './app/generateMetadata.js',
             './app/[...not-found]/generateMetadata.js',
+            './app/required/generateMetadata.js',
+            './app/required-confirm/generateMetadata.js',
             './next.config.mjs',
             './tailwind.config.js',
             './postcss.config.mjs',
             './jsconfig.json',
             './tsconfig.json',
-            'node_modules' // Luôn loại trừ node_modules
+            'node_modules'
         ],
         log: true,
     }
