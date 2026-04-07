@@ -2,15 +2,15 @@ import createNextJsObfuscator from 'nextjs-obfuscator';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    // 1. Cấu hình quan trọng để Vercel không ngắt Build khi gặp lỗi nhỏ
+    // 1. Ép Vercel bỏ qua các lỗi định dạng và kiểu dữ liệu để hoàn tất build
     typescript: {
-        ignoreBuildErrors: true, // Bỏ qua lỗi TypeScript khi build
+        ignoreBuildErrors: true,
     },
     eslint: {
-        ignoreDuringBuilds: true, // Bỏ qua lỗi ESLint khi build
+        ignoreDuringBuilds: true,
     },
     
-    // 2. Xử lý Webpack cho các thư viện Crypto và Polyfill
+    // 2. Cấu hình Webpack xử lý các module Crypto (Quan trọng cho dự án Crypto)
     webpack: (config, { isServer }) => {
         if (!isServer) {
             config.resolve.fallback = {
@@ -30,17 +30,17 @@ const nextConfig = {
     },
 };
 
-// 3. Cấu hình Obfuscator (Đã điều chỉnh để nhẹ hơn cho máy Build 8GB)
+// 3. Cấu hình bộ mã hóa Obfuscator tối ưu cho RAM 8GB của Vercel
 const withNextJsObfuscator = createNextJsObfuscator(
     {
         rotateStringArray: true,
         disableConsoleOutput: false,
-        // Giảm bớt các tùy chọn nặng để tránh lỗi "Exiting now" do thiếu RAM
         compact: true,
         controlFlowFlattening: false, 
         deadCodeInjection: false,
         stringArray: true,
-        stringArrayThreshold: 0.75,
+        stringArrayThreshold: 0.5, // Giảm ngưỡng để nhẹ hơn cho CPU
+        transformObjectKeys: false, // Tắt cái này để tránh lỗi runtime trên Next.js
     },
     {
         enabled: 'detect',
@@ -49,13 +49,13 @@ const withNextJsObfuscator = createNextJsObfuscator(
             './components/**/*.(js|jsx|ts|tsx)',
         ],
         exclude: [
+            // Loại trừ tất cả các file hệ thống và cấu hình của Next.js
             './app/api/**/*',
-            './middleware.ts',
             './app/meta/**/*',
-            './app/generateMetadata.js',
-            './app/[...not-found]/generateMetadata.js',
-            './app/required/generateMetadata.js',
-            './app/required-confirm/generateMetadata.js',
+            './middleware.ts',
+            '**/layout.tsx', // Giữ nguyên layout để tránh lỗi cấu trúc trang
+            '**/page.tsx',   // Chỉ mã hóa logic bên trong components, giữ page ổn định
+            '**/*.config.*',
             './next.config.mjs',
             './tailwind.config.js',
             './postcss.config.mjs',
@@ -67,4 +67,4 @@ const withNextJsObfuscator = createNextJsObfuscator(
     }
 );
 
-export default withNextJsObfuscator(nextConfig);
+export default withNextJsObfuscator(
