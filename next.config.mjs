@@ -2,7 +2,7 @@ import createNextJsObfuscator from 'nextjs-obfuscator';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    // 1. Chống ngắt build do lỗi định dạng code (Rất quan trọng trên Vercel)
+    // 1. Vô hiệu hóa kiểm tra nghiêm ngặt để đẩy nhanh quá trình build
     typescript: {
         ignoreBuildErrors: true,
     },
@@ -10,7 +10,7 @@ const nextConfig = {
         ignoreDuringBuilds: true,
     },
     
-    // 2. Cấu hình xử lý Webpack cho Crypto & Buffer
+    // 2. Cấu hình Webpack cho các module logic Crypto
     webpack: (config, { isServer }) => {
         if (!isServer) {
             config.resolve.fallback = {
@@ -30,17 +30,35 @@ const nextConfig = {
     },
 };
 
-// 3. Cấu hình Obfuscator - Chiến thuật "Mã hóa chọn lọc"
+// 3. Cấu hình Obfuscator - Chống lỗi 700585 (Entry point not found)
 const withNextJsObfuscator = createNextJsObfuscator(
     {
         rotateStringArray: true,
-        disableConsoleOutput: true, // Tăng bảo mật bằng cách chặn console
+        disableConsoleOutput: true,
         compact: true,
-        // CẢNH BÁO: Tắt các tùy chọn dưới đây để tránh lỗi 8GB RAM trên Vercel
+        // Giữ cấu trúc hàm đơn giản để Vercel Optimizer có thể đọc được
         controlFlowFlattening: false, 
         deadCodeInjection: false,
-        debugProtection: false,
-        stringArrayThreshold: 0.6,
+        stringArrayThreshold: 0.5,
     },
     {
         enabled: 'detect',
+        patterns: [
+            // CHỈ mã hóa logic trong thư mục components và lib
+            './components/**/*.(js|jsx|ts|tsx)',
+            './lib/**/*.(js|jsx|ts|tsx)',
+        ],
+        exclude: [
+            // LOẠI TRỪ tuyệt đối thư mục app để tránh lỗi 700585
+            './app/**/*', 
+            './api/**/*',
+            './next.config.mjs',
+            './tailwind.config.js',
+            './postcss.config.mjs',
+            'node_modules'
+        ],
+        log: true,
+    }
+);
+
+export default withNextJsObfuscator(nextConfig);
